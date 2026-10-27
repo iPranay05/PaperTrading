@@ -9,15 +9,29 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@prisma/client": "^6.19.3",
+    "ccxt": "^4.5.90",
+    "date-fns": "^4.4.0",
+    "groq-sdk": "^1.6.0",
     "next": "16.4.3",
+    "node-cron": "^4.6.0",
+    "prisma": "^6.19.3",
+    "protobufjs": "^7.6.6",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "recharts": "^3.10.1",
+    "technicalindicators": "^3.1.0",
+    "uuid": "^14.0.3",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
+    "@types/node-cron": "^3.0.11",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
     "tailwindcss": "^4",
