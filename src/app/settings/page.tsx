@@ -172,11 +172,11 @@ export default function SettingsPage() {
 
         <div className="pt-2">
           <label className="block text-zinc-400 mb-1">
-            Simulated Portfolio Equity ($)
+            Simulated Portfolio Equity (₹ INR)
           </label>
           <input
             type="number"
-            step="1000"
+            step="10000"
             value={currentEquity}
             onChange={(e) => setCurrentEquity(e.target.value)}
             className="w-full sm:w-1/2 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 focus:outline-none focus:border-cyan-500 font-bold"

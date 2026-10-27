@@ -209,7 +209,7 @@ export default function CalibrationPage() {
                       (t.pnl ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400"
                     }`}
                   >
-                    {(t.pnl ?? 0) >= 0 ? "+" : ""}${Number(t.pnl ?? 0).toFixed(2)}
+                    {(t.pnl ?? 0) >= 0 ? "+" : ""}₹{Number(t.pnl ?? 0).toFixed(2)}
                   </td>
                 </tr>
               ))}

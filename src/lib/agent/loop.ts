@@ -391,8 +391,8 @@ async function runAgentCycle(watchlist: { stock: string[]; crypto: string[] }): 
 
   // Get account state
   const [stockAccount, cryptoAccount] = await Promise.all([
-    stockBroker.getAccount().catch(() => ({ equity: 100000, buyingPower: 100000, positions: [], isPaper: true })),
-    cryptoBroker.getAccount().catch(() => ({ equity: 100000, buyingPower: 100000, positions: [], isPaper: true })),
+    stockBroker.getAccount().catch(() => ({ equity: 0, buyingPower: 0, positions: [], isPaper: true })),
+    cryptoBroker.getAccount().catch(() => ({ equity: 0, buyingPower: 0, positions: [], isPaper: true })),
   ]);
 
   const allPositions = [...stockAccount.positions, ...cryptoAccount.positions];
@@ -739,7 +739,7 @@ async function updateDailySnapshot(equity: number, decisions: AgentDecision[]): 
 
 // ---- Agent Lifecycle ----
 const DEFAULT_WATCHLIST = {
-  stock: ["AAPL", "MSFT", "GOOGL", "TSLA", "NVDA"],
+  stock: ["RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS", "TATAMOTORS.NS", "AAPL", "NVDA"],
   crypto: ["BTC/USDT", "ETH/USDT", "SOL/USDT"],
 };
 

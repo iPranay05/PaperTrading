@@ -26,8 +26,8 @@ export async function GET() {
     return NextResponse.json({
       isRunning: isAgentRunning(),
       state: state || {
-        currentEquity: 100000,
-        startingEquity: 100000,
+        currentEquity: 0,
+        startingEquity: 0,
         killSwitch: false,
         dailyPnl: 0,
         currentRegime: "ranging",

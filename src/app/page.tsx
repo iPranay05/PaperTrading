@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
+import { formatINR, formatINRK } from "@/lib/currency";
 
 interface Position {
   id: string;
@@ -52,8 +53,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [isRunning, setIsRunning] = useState(false);
   const [killSwitchActive, setKillSwitchActive] = useState(false);
-  const [equity, setEquity] = useState<number>(100000);
-  const [startingEquity, setStartingEquity] = useState<number>(100000);
+  const [equity, setEquity] = useState<number>(0);
+  const [startingEquity, setStartingEquity] = useState<number>(0);
   const [dailyPnl, setDailyPnl] = useState<number>(0);
   const [regime, setRegime] = useState<string>("ranging");
   const [positions, setPositions] = useState<Position[]>([]);
@@ -213,7 +214,7 @@ export default function DashboardPage() {
             Total Equity
           </span>
           <div className="text-2xl font-bold text-white mt-1 font-mono">
-            ${equity.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatINR(equity)}
           </div>
           <div className="flex items-center gap-1.5 mt-1 text-xs">
             <span className={`font-mono font-semibold ${totalReturnPct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
@@ -229,7 +230,7 @@ export default function DashboardPage() {
             Daily P&L
           </span>
           <div className={`text-2xl font-bold mt-1 font-mono ${dailyPnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-            {dailyPnl >= 0 ? "+" : ""}${dailyPnl.toFixed(2)}
+            {formatINR(dailyPnl, true)}
           </div>
           <div className="flex items-center gap-1.5 mt-1 text-xs">
             <span className={`font-mono font-semibold ${dailyPnlPct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
@@ -245,10 +246,10 @@ export default function DashboardPage() {
             Win Rate
           </span>
           <div className="text-2xl font-bold text-cyan-400 mt-1 font-mono">
-            {stats.winRate > 0 ? `${stats.winRate}%` : "75.0%"}
+            {stats.totalTrades > 0 ? `${stats.winRate.toFixed(1)}%` : "--"}
           </div>
           <div className="flex items-center gap-1.5 mt-1 text-xs text-zinc-400">
-            <span className="text-zinc-300 font-mono">{stats.totalTrades || 4}</span>
+            <span className="text-zinc-300 font-mono">{stats.totalTrades}</span>
             <span className="text-zinc-500 text-[11px]">closed trades</span>
           </div>
         </div>
@@ -259,7 +260,7 @@ export default function DashboardPage() {
             Profit Factor
           </span>
           <div className="text-2xl font-bold text-indigo-400 mt-1 font-mono">
-            {stats.profitFactor > 0 ? stats.profitFactor : "2.34"}
+            {stats.totalTrades > 0 ? (typeof stats.profitFactor === "number" ? stats.profitFactor.toFixed(2) : stats.profitFactor) : "--"}
           </div>
           <div className="flex items-center gap-1.5 mt-1 text-xs text-zinc-400">
             <span className="text-emerald-400 font-semibold font-mono">Gross Gain / Loss</span>
@@ -286,7 +287,7 @@ export default function DashboardPage() {
             <span className="text-zinc-600">|</span>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-zinc-600 inline-block" />
-              <span className="text-zinc-400">Initial ($100k)</span>
+              <span className="text-zinc-400">Initial ({formatINRK(startingEquity)})</span>
             </div>
           </div>
         </div>
@@ -297,14 +298,9 @@ export default function DashboardPage() {
               data={
                 snapshots.length > 0
                   ? snapshots
-                  : [
-                      { date: "Day 1", equity: 100000, dailyPnl: 0 },
-                      { date: "Day 3", equity: 100900, dailyPnl: 900 },
-                      { date: "Day 6", equity: 102300, dailyPnl: 1400 },
-                      { date: "Day 9", equity: 102800, dailyPnl: 500 },
-                      { date: "Day 12", equity: 103700, dailyPnl: 900 },
-                      { date: "Today", equity: equity, dailyPnl: dailyPnl },
-                    ]
+                  : equity > 0
+                  ? [{ date: "Now", equity, dailyPnl }]
+                  : []
               }
               margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
             >
@@ -328,7 +324,7 @@ export default function DashboardPage() {
                 tickLine={false}
                 axisLine={false}
                 domain={["auto", "auto"]}
-                tickFormatter={(val) => `$${(val / 1000).toFixed(1)}k`}
+                tickFormatter={(val) => formatINRK(val)}
               />
               <Tooltip
                 contentStyle={{
@@ -338,7 +334,7 @@ export default function DashboardPage() {
                   fontSize: "12px",
                   color: "#f4f4f5",
                 }}
-                formatter={(val: any) => [`$${Number(val).toLocaleString()}`, "Equity"]}
+                formatter={(val: any) => [formatINR(Number(val)), "Equity"]}
               />
               <Area
                 type="monotone"
@@ -404,15 +400,15 @@ export default function DashboardPage() {
                           {pos.side}
                         </span>
                       </td>
-                      <td className="py-2.5">${pos.entryPrice.toFixed(2)}</td>
-                      <td className="py-2.5">${pos.currentPrice.toFixed(2)}</td>
-                      <td className="py-2.5 text-rose-400 font-semibold">${pos.stopLoss.toFixed(2)}</td>
+                      <td className="py-2.5">₹{pos.entryPrice.toFixed(2)}</td>
+                      <td className="py-2.5">₹{pos.currentPrice.toFixed(2)}</td>
+                      <td className="py-2.5 text-rose-400 font-semibold">₹{pos.stopLoss.toFixed(2)}</td>
                       <td
                         className={`py-2.5 font-semibold ${
                           pos.unrealizedPnl >= 0 ? "text-emerald-400" : "text-rose-400"
                         }`}
                       >
-                        {pos.unrealizedPnl >= 0 ? "+" : ""}${pos.unrealizedPnl.toFixed(2)}
+                        {formatINR(pos.unrealizedPnl, true)}
                       </td>
                       <td className="py-2.5 text-zinc-400">{pos.exposurePct}%</td>
                     </tr>
@@ -479,7 +475,7 @@ export default function DashboardPage() {
                     </span>
                     {isTrade && dec.trade?.pnl !== undefined && (
                       <span className={dec.trade.pnl >= 0 ? "text-emerald-400" : "text-rose-400"}>
-                        Outcome: {dec.trade.pnl >= 0 ? "+" : ""}${dec.trade.pnl.toFixed(2)}
+                        Outcome: {formatINR(dec.trade.pnl, true)}
                       </span>
                     )}
                   </div>

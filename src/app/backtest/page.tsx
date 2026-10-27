@@ -11,11 +11,12 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
+import { formatINR, formatINRK } from "@/lib/currency";
 
 export default function BacktestPage() {
   const [strategy, setStrategy] = useState("sma_crossover");
-  const [symbol, setSymbol] = useState("AAPL");
-  const [initialCapital, setInitialCapital] = useState(10000);
+  const [symbol, setSymbol] = useState("RELIANCE.NS");
+  const [initialCapital, setInitialCapital] = useState(100000);
   const [trainTestSplit, setTrainTestSplit] = useState(0.7);
   const [feeRate, setFeeRate] = useState(0.001);
   const [slippageBps, setSlippageBps] = useState(5);
@@ -101,18 +102,30 @@ export default function BacktestPage() {
           </div>
 
           <div>
-            <label className="block text-zinc-400 mb-1">Symbol</label>
+            <label className="block text-zinc-400 mb-1">Symbol (NSE / Global)</label>
             <input
               type="text"
               value={symbol}
               onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-              placeholder="AAPL or BTC/USDT"
+              placeholder="RELIANCE.NS or TCS.NS"
               className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 focus:outline-none focus:border-cyan-500 font-bold"
             />
+            <div className="flex flex-wrap gap-1 mt-1 text-[10px]">
+              {["RELIANCE.NS", "TCS.NS", "INFY.NS", "TATAMOTORS.NS", "BTC/USDT"].map((sym) => (
+                <button
+                  key={sym}
+                  type="button"
+                  onClick={() => setSymbol(sym)}
+                  className="px-1.5 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                >
+                  {sym.replace(".NS", "")}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div>
-            <label className="block text-zinc-400 mb-1">Initial Capital ($)</label>
+            <label className="block text-zinc-400 mb-1">Initial Capital (₹)</label>
             <input
               type="number"
               value={initialCapital}
@@ -283,7 +296,7 @@ export default function BacktestPage() {
                       tickLine={false}
                       axisLine={false}
                       domain={["auto", "auto"]}
-                      tickFormatter={(val) => `$${Number(val).toLocaleString()}`}
+                      tickFormatter={(val) => formatINRK(val)}
                     />
                     <Tooltip
                       contentStyle={{
@@ -293,7 +306,7 @@ export default function BacktestPage() {
                         fontSize: "12px",
                         color: "#f4f4f5",
                       }}
-                      formatter={(val: any) => [`$${Number(val).toFixed(2)}`, ""]}
+                      formatter={(val: any) => [formatINR(Number(val)), ""]}
                     />
                     <Line
                       type="monotone"

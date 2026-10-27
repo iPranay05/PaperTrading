@@ -134,18 +134,55 @@ export class AlpacaPaperBroker implements IBroker {
   }
 
   async getCurrentPrice(symbol: string): Promise<number> {
-    const res = await fetch(
-      `https://data.alpaca.markets/v2/stocks/${symbol}/quotes/latest`,
-      {
-        headers: {
-          "APCA-API-KEY-ID": this.apiKey,
-          "APCA-API-SECRET-KEY": this.apiSecret,
-        },
+    // If it's an Indian stock (NSE/BSE) or Alpaca is not used, fetch from Yahoo Finance
+    if (symbol.includes(".NS") || symbol.includes(".BO") || !this.apiKey) {
+      try {
+        const res = await fetch(
+          `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1m&range=1d`
+        );
+        if (res.ok) {
+          const json = await res.json();
+          const price = json.chart?.result?.[0]?.meta?.regularMarketPrice;
+          if (price && typeof price === "number") {
+            return price;
+          }
+        }
+      } catch (err) {
+        console.warn(`[StockBroker] Yahoo finance price failed for ${symbol}:`, err);
       }
-    );
-    if (!res.ok) throw new Error(`Price fetch failed for ${symbol}`);
-    const data = await res.json();
-    return (data.quote.ap + data.quote.bp) / 2; // midpoint
+    }
+
+    try {
+      const res = await fetch(
+        `https://data.alpaca.markets/v2/stocks/${symbol}/quotes/latest`,
+        {
+          headers: {
+            "APCA-API-KEY-ID": this.apiKey,
+            "APCA-API-SECRET-KEY": this.apiSecret,
+          },
+        }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        return (data.quote.ap + data.quote.bp) / 2; // midpoint
+      }
+    } catch {
+      // Fallback
+    }
+
+    // Secondary Yahoo Finance fallback
+    try {
+      const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1m&range=1d`);
+      if (res.ok) {
+        const json = await res.json();
+        const price = json.chart?.result?.[0]?.meta?.regularMarketPrice;
+        if (price) return price;
+      }
+    } catch {
+      // ignore
+    }
+
+    throw new Error(`Price fetch failed for ${symbol}`);
   }
 }
 
@@ -341,7 +378,7 @@ export class SimulatedPaperBroker implements IBroker {
   readonly name = "Simulated Paper";
   readonly market: MarketType;
   private positions: Map<string, PositionInfo> = new Map();
-  private equity = 100000;
+  private equity = 500000;
   private orders: Map<string, BracketOrder & { id: string }> = new Map();
 
   constructor(market: MarketType = "stock") {

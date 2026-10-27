@@ -71,40 +71,96 @@ async function setCachedResponse(
 }
 
 // ---- Groq Call ----
-async function callGroq(messages: LLMMessage[], model = "qwen/qwen3.8-27b"): Promise<LLMResponse> {
+// Model priority: openai/gpt-oss-20b (reliable) → qwen/qwen3.8-27b (thinking model, strip <think> tags)
+const GROQ_PRIMARY_MODEL = "openai/gpt-oss-20b";
+const GROQ_FALLBACK_MODEL = "qwen/qwen3.8-27b";
+
+/** Strip <think>...</think> reasoning tokens from Qwen/reasoning models */
+function stripThinkingTokens(text: string): string {
+  // Remove everything inside <think>...</think> tags (including the tags)
+  return text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+}
+
+async function callGroq(messages: LLMMessage[], model = GROQ_PRIMARY_MODEL): Promise<LLMResponse> {
   const client = getGroqClient();
   try {
     const completion = await client.chat.completions.create({
       model,
       messages: messages.map((m) => ({ role: m.role, content: m.content })),
       temperature: 0.3,
-      max_tokens: 4096,
+      max_tokens: 1024,
     });
 
+    let content = completion.choices[0]?.message?.content || "";
+    // Strip thinking tokens from reasoning models (Qwen, etc.)
+    content = stripThinkingTokens(content);
+
+    // Guard: if model returned empty content after stripping, try fallback
+    if (!content.trim() && model !== GROQ_FALLBACK_MODEL) {
+      console.warn(`[LLM] Groq model ${model} returned empty content after stripping, trying fallback`);
+      return callGroq(messages, GROQ_FALLBACK_MODEL);
+    }
+
     return {
-      content: completion.choices[0]?.message?.content || "",
+      content,
       provider: "groq",
       model,
       tokensUsed: completion.usage?.total_tokens,
       cached: false,
     };
-  } catch (err) {
-    if (model !== "openai/gpt-oss-120b") {
-      return callGroq(messages, "openai/gpt-oss-120b");
+  } catch (err: unknown) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    // On rate limit, wait briefly before retrying with fallback
+    if (errMsg.includes("rate_limit_exceeded") || errMsg.includes("429")) {
+      console.warn(`[LLM] Groq rate limit hit on ${model}, waiting 10s before fallback...`);
+      await new Promise((r) => setTimeout(r, 10000));
+    }
+    // Retry with fallback model on model-specific or rate limit errors
+    if (model !== GROQ_FALLBACK_MODEL && (
+      errMsg.includes("model") || errMsg.includes("not found") ||
+      errMsg.includes("does not exist") || errMsg.includes("decommissioned") ||
+      errMsg.includes("rate_limit_exceeded")
+    )) {
+      console.warn(`[LLM] Groq model ${model} error, retrying with ${GROQ_FALLBACK_MODEL}:`, errMsg);
+      return callGroq(messages, GROQ_FALLBACK_MODEL);
     }
     throw err;
   }
 }
 
 // ---- Gemini Call ----
-async function callGemini(messages: LLMMessage[], model = "gemini-3.5-flash-lite"): Promise<LLMResponse> {
+// Model priority: gemini-3.8-flash → gemini-1.5-flash → gemini-1.5-flash-8b (lightweight fallback)
+const GEMINI_PRIMARY_MODEL = "gemini-3.8-flash";
+const GEMINI_FALLBACK_MODEL = "gemini-1.5-flash";
+const GEMINI_LAST_RESORT_MODEL = "gemini-1.5-flash-8b";
+
+async function callGemini(messages: LLMMessage[], model = GEMINI_PRIMARY_MODEL, attempt = 0): Promise<LLMResponse> {
   const client = getGeminiClient();
+  const fallbackChain = [GEMINI_PRIMARY_MODEL, GEMINI_FALLBACK_MODEL, GEMINI_LAST_RESORT_MODEL];
   try {
-    const genModel = client.getGenerativeModel({ model });
+    const genModel = client.getGenerativeModel({
+      model,
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens: 2048,
+      },
+    });
 
     // Convert messages to Gemini format
     const systemMsg = messages.find((m) => m.role === "system");
     const chatMessages = messages.filter((m) => m.role !== "system");
+
+    // If only one message, use generateContent directly (avoids empty history error)
+    if (chatMessages.length <= 1) {
+      const prompt = (systemMsg ? systemMsg.content + "\n\n" : "") + (chatMessages[0]?.content || "");
+      const result = await genModel.generateContent(prompt);
+      const content = result.response.text();
+      if (!content.trim() && attempt < fallbackChain.length - 1) {
+        console.warn(`[LLM] Gemini model ${model} returned empty content, trying fallback`);
+        return callGemini(messages, fallbackChain[attempt + 1], attempt + 1);
+      }
+      return { content, provider: "gemini", model, cached: false };
+    }
 
     const chat = genModel.startChat({
       history: chatMessages.slice(0, -1).map((m) => ({
@@ -116,17 +172,27 @@ async function callGemini(messages: LLMMessage[], model = "gemini-3.5-flash-lite
 
     const lastMsg = chatMessages[chatMessages.length - 1];
     const result = await chat.sendMessage(lastMsg.content);
-    const response = result.response;
+    const content = result.response.text();
 
-    return {
-      content: response.text(),
-      provider: "gemini",
-      model,
-      cached: false,
-    };
-  } catch (err) {
-    if (model !== "gemini-2.5-pro") {
-      return callGemini(messages, "gemini-2.5-pro");
+    // Guard: empty content → try next model in chain
+    if (!content.trim() && attempt < fallbackChain.length - 1) {
+      console.warn(`[LLM] Gemini model ${model} returned empty content, trying fallback`);
+      return callGemini(messages, fallbackChain[attempt + 1], attempt + 1);
+    }
+
+    return { content, provider: "gemini", model, cached: false };
+  } catch (err: unknown) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    // Retry with next model in chain on model-specific or empty-output errors
+    if (attempt < fallbackChain.length - 1 && (
+      errMsg.includes("model output") ||
+      errMsg.includes("not found") ||
+      errMsg.includes("deprecated") ||
+      errMsg.includes("INVALID_ARGUMENT") ||
+      errMsg.includes("quota")
+    )) {
+      console.warn(`[LLM] Gemini model ${model} error, retrying with ${fallbackChain[attempt + 1]}:`, errMsg);
+      return callGemini(messages, fallbackChain[attempt + 1], attempt + 1);
     }
     throw err;
   }
@@ -230,7 +296,13 @@ Analyze and provide your trade recommendation as JSON.`;
   );
 
   try {
-    const cleaned = response.content.replace(/```json\n?|\n?```/g, "").trim();
+    let cleaned = response.content.trim();
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      cleaned = jsonMatch[0];
+    } else {
+      cleaned = cleaned.replace(/```json\n?|\n?```/g, "").trim();
+    }
     return JSON.parse(cleaned) as TradeAnalysis;
   } catch {
     // If JSON parsing fails, return a skip action

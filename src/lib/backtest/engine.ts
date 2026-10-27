@@ -539,7 +539,13 @@ export async function runFullBacktest(config: BacktestConfig): Promise<{
   const data = await fetchHistoricalData(config.symbol, config.market, config.startDate, config.endDate);
 
   if (data.length < 20) {
-    throw new Error(`Insufficient data for ${config.symbol}: got ${data.length} bars`);
+    console.warn(`[Backtest] Insufficient data for ${config.symbol}: got ${data.length} bars — returning zero result`);
+    const zeroMetrics: BacktestMetrics = {
+      totalReturn: 0, sharpeRatio: 0, maxDrawdown: 0,
+      winRate: 0, totalTrades: 0, profitFactor: 0,
+      avgWin: 0, avgLoss: 0, equityCurve: [],
+    };
+    return { train: zeroMetrics, test: zeroMetrics, buyAndHold: zeroMetrics, beatsHold: false };
   }
 
   const splitIdx = Math.floor(data.length * config.trainTestSplit);

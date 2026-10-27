@@ -10,7 +10,7 @@ export default function Header({ onRefresh }: HeaderProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [killSwitchActive, setKillSwitchActive] = useState(false);
   const [regime, setRegime] = useState("ranging");
-  const [equity, setEquity] = useState<number>(100000);
+  const [equity, setEquity] = useState<number>(0);
   const [loadingKill, setLoadingKill] = useState(false);
 
   async function fetchStatus() {
@@ -21,7 +21,7 @@ export default function Header({ onRefresh }: HeaderProps) {
         setIsRunning(data.isRunning);
         setKillSwitchActive(data.state?.killSwitch ?? false);
         setRegime(data.state?.currentRegime ?? "ranging");
-        setEquity(data.state?.currentEquity ?? 100000);
+        setEquity(data.state?.currentEquity ?? 0);
       }
     } catch {
       // ignore
@@ -123,7 +123,7 @@ export default function Header({ onRefresh }: HeaderProps) {
             Simulated Portfolio
           </span>
           <span className="text-sm font-bold text-zinc-100">
-            ${equity.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ₹{equity.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </div>
 
