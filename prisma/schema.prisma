@@ -1,0 +1,151 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+model Trade {
+  id               String   @id @default(uuid())
+  symbol           String
+  side             String
+  quantity         Float
+  entryPrice       Float
+  stopLoss         Float
+  takeProfit       Float?
+  status           String   @default("pending")
+  exitPrice        Float?
+  pnl              Float?
+  strategy         String
+  market           String
+  brokerOrderId    String?
+  confidence       Float?
+  groqConfidence   Float?
+  geminiConfidence Float?
+  ensembleAction   String?
+  thesis           String?
+  invalidation     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  closedAt         DateTime?
+  journalEntry     JournalEntry?
+}
+
+model JournalEntry {
+  id              String   @id @default(uuid())
+  tradeId         String?  @unique
+  trade           Trade?   @relation(fields: [tradeId], references: [id])
+  decisionType    String
+  observation     String
+  strategy        String
+  thesis          String
+  confidence      String
+  riskCalculation String
+  outcome         String?
+  auditTrail      String
+  signalScore     Float?
+  noiseHeadlines  Int      @default(0)
+  signalHeadlines Int      @default(0)
+  createdAt       DateTime @default(now())
+}
+
+model BacktestResult {
+  id               String   @id @default(uuid())
+  strategy         String
+  symbol           String
+  market           String
+  startDate        String
+  endDate          String
+  totalReturn      Float
+  sharpeRatio      Float
+  maxDrawdown      Float
+  winRate          Float
+  totalTrades      Int
+  buyAndHoldReturn Float
+  feesIncluded     Boolean  @default(true)
+  slippageIncluded Boolean  @default(true)
+  outOfSample      Boolean  @default(false)
+  equityCurve      String
+  parameters       String
+  createdAt        DateTime @default(now())
+}
+
+model Position {
+  id            String   @id @default(uuid())
+  symbol        String
+  side          String
+  quantity      Float
+  entryPrice    Float
+  currentPrice  Float
+  stopLoss      Float
+  unrealizedPnl Float    @default(0)
+  market        String
+  status        String   @default("open")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model AgentState {
+  id              String   @id @default("singleton")
+  isRunning       Boolean  @default(false)
+  killSwitch      Boolean  @default(false)
+  currentEquity   Float    @default(100000)
+  startingEquity  Float    @default(100000)
+  dailyPnl        Float    @default(0)
+  dailyLossLimit  Float    @default(0.03)
+  riskPerTrade    Float    @default(0.01)
+  maxPositions    Int      @default(5)
+  maxExposure     Float    @default(0.20)
+  lastResetDate   String?
+  currentRegime   String?
+  activeStrategy  String?
+  lastHeartbeat   DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model LLMCache {
+  id         String   @id @default(uuid())
+  promptHash String   @unique
+  provider   String
+  prompt     String
+  response   String
+  model      String
+  tokensUsed Int?
+  createdAt  DateTime @default(now())
+}
+
+model NewsItem {
+  id          String   @id @default(uuid())
+  source      String
+  title       String
+  summary     String?
+  url         String?
+  symbol      String?
+  sentiment   String?
+  signalScore Float?
+  isSignal    Boolean  @default(false)
+  isNoise     Boolean  @default(false)
+  noiseReason String?
+  publishedAt DateTime?
+  processedAt DateTime @default(now())
+}
+
+model DailySnapshot {
+  id                String   @id @default(uuid())
+  date              String   @unique
+  equity            Float
+  dailyPnl          Float
+  openPositions     Int
+  tradesExecuted    Int
+  tradesSkipped     Int
+  tradesRejected    Int
+  headlinesRead     Int
+  headlinesActedOn  Int
+  calibrationHit    Float?
+  createdAt         DateTime @default(now())
+}
