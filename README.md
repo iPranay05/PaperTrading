@@ -4,6 +4,16 @@ An AI-driven **paper-trading** app (no real money, ever). An agent watches a wat
 
 > **Principle:** the LLM proposes, deterministic code disposes. Position sizing, stop-losses and limits are plain code with no LLM involved.
 
+
+## 🚀 Live Demo
+
+**Try Alpha-Agent:** https://paper-trading-main.vercel.app/
+
+Explore the live dashboard, simulated trading activity, AI-generated trade decisions and trading journal.
+
+> Paper trading only. No real money is involved.
+
+
 ## Features
 
 | Page | What it does |
