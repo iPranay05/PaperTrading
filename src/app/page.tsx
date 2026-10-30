@@ -67,6 +67,8 @@ export default function DashboardPage() {
     totalPnl: 0,
   });
   const [cycleRunning, setCycleRunning] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   // Initialize and fetch data
   async function loadDashboardData() {
@@ -84,8 +86,8 @@ export default function DashboardPage() {
         const agentData = await agentRes.json();
         setIsRunning(agentData.isRunning);
         setKillSwitchActive(agentData.state?.killSwitch ?? false);
-        setEquity(agentData.state?.currentEquity ?? 100000);
-        setStartingEquity(agentData.state?.startingEquity ?? 100000);
+        setEquity(agentData.state?.currentEquity ?? 1000000);
+        setStartingEquity(agentData.state?.startingEquity ?? 1000000);
         setDailyPnl(agentData.state?.dailyPnl ?? 0);
         setRegime(agentData.state?.currentRegime ?? "ranging");
         setDecisions(agentData.recentDecisions || []);
@@ -155,6 +157,41 @@ export default function DashboardPage() {
     }
   }
 
+  async function handleLoadDemo() {
+    setDemoLoading(true);
+    try {
+      const res = await fetch("/api/demo", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        await loadDashboardData();
+      } else {
+        alert("Demo load failed: " + (data.error || "Unknown error"));
+      }
+    } catch (err) {
+      alert("Demo trigger error: " + err);
+    } finally {
+      setDemoLoading(false);
+    }
+  }
+
+  async function handleResetClean() {
+    if (!confirm("Reset to clean state (₹10,00,000 cash, 0 trades, 0 positions)?")) return;
+    setResetLoading(true);
+    try {
+      const res = await fetch("/api/reset", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        await loadDashboardData();
+      } else {
+        alert("Reset failed: " + (data.error || "Unknown error"));
+      }
+    } catch (err) {
+      alert("Reset error: " + err);
+    } finally {
+      setResetLoading(false);
+    }
+  }
+
   const totalReturnPct = startingEquity > 0 ? ((equity - startingEquity) / startingEquity) * 100 : 0;
   const dailyPnlPct = equity > 0 ? (dailyPnl / equity) * 100 : 0;
 
@@ -174,11 +211,36 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Demo Showcase Button */}
+          <button
+            onClick={handleLoadDemo}
+            disabled={demoLoading}
+            title="Load live simulation with positions, trades, profit, and Dual-LLM theses"
+            className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 text-amber-300 hover:text-amber-200 text-xs font-mono font-semibold border border-amber-500/40 transition flex items-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50"
+          >
+            <span className="text-sm">⚡</span>
+            <span>{demoLoading ? "Simulating..." : "Demo Simulation"}</span>
+          </button>
+
+          {/* Reset Clean Slate Button */}
+          <button
+            onClick={handleResetClean}
+            disabled={resetLoading}
+            title="Wipe demo data and reset to fresh ₹10 Lakhs slate"
+            className="px-2.5 py-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 text-xs font-mono border border-zinc-700/60 transition flex items-center gap-1 disabled:opacity-50"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            <span>{resetLoading ? "..." : "Reset"}</span>
+          </button>
+
+          {/* Single Cycle Trigger */}
           <button
             onClick={handleRunSingleCycle}
             disabled={cycleRunning || killSwitchActive}
-            className="px-3.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-mono font-medium border border-zinc-700 transition flex items-center gap-1.5 disabled:opacity-50"
+            className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-mono font-medium border border-zinc-700 transition flex items-center gap-1.5 disabled:opacity-50"
           >
             <svg
               className={`w-3.5 h-3.5 ${cycleRunning ? "animate-spin text-cyan-400" : "text-zinc-400"}`}
@@ -188,13 +250,14 @@ export default function DashboardPage() {
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            <span>{cycleRunning ? "Analyzing..." : "Trigger Single Cycle"}</span>
+            <span>{cycleRunning ? "Analyzing..." : "Single Cycle"}</span>
           </button>
 
+          {/* Start/Stop Autonomous Agent */}
           <button
             onClick={handleToggleAgent}
             disabled={killSwitchActive}
-            className={`px-4 py-1.5 rounded-lg text-xs font-mono font-semibold transition shadow flex items-center gap-2 disabled:opacity-50 ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-semibold transition shadow flex items-center gap-2 disabled:opacity-50 ${
               isRunning
                 ? "bg-rose-600/90 hover:bg-rose-500 text-white shadow-rose-600/20"
                 : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20"
