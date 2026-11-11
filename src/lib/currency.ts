@@ -26,3 +26,11 @@ export function formatINRK(val: number | null | undefined): string {
 }
 
 export const CURRENCY_SYMBOL = "₹";
+
+// Standard USD to INR conversion rate for USD-denominated accounts/brokers
+export const USD_TO_INR_RATE = 86.5;
+
+export function usdToInr(usdAmount: number): number {
+  return usdAmount * USD_TO_INR_RATE;
+}
+
